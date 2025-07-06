@@ -1,5 +1,5 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const Database = require('better-sqlite3');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -19,24 +19,23 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // Initialize SQLite database
-const db = new sqlite3.Database('location_data.db');
+const dbPath = process.env.NODE_ENV === 'production' ? '/tmp/location_data.db' : 'location_data.db';
+const db = new Database(dbPath);
 
 // Create table if it doesn't exist
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS visits (
-        id TEXT PRIMARY KEY,
-        ip_address TEXT,
-        user_agent TEXT,
-        latitude REAL,
-        longitude REAL,
-        accuracy REAL,
-        location_permission TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-        country TEXT,
-        city TEXT,
-        referrer TEXT
-    )`);
-});
+db.exec(`CREATE TABLE IF NOT EXISTS visits (
+    id TEXT PRIMARY KEY,
+    ip_address TEXT,
+    user_agent TEXT,
+    latitude REAL,
+    longitude REAL,
+    accuracy REAL,
+    location_permission TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    country TEXT,
+    city TEXT,
+    referrer TEXT
+)`);
 
 // Helper function to get client IP
 function getClientIP(req) {
@@ -75,48 +74,47 @@ app.post('/api/capture', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referrer = req.headers.referer || '';
 
-    // Insert data into database
-    const stmt = db.prepare(`INSERT INTO visits 
-        (id, ip_address, user_agent, latitude, longitude, accuracy, location_permission, country, city, referrer) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    
-    stmt.run([
-        visitId,
-        ipAddress,
-        userAgent,
-        latitude,
-        longitude,
-        accuracy,
-        permission,
-        country,
-        city,
-        referrer
-    ], function(err) {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: 'Failed to save data' });
-        }
-        
+    try {
+        // Insert data into database
+        const stmt = db.prepare(`INSERT INTO visits
+            (id, ip_address, user_agent, latitude, longitude, accuracy, location_permission, country, city, referrer)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+        stmt.run(
+            visitId,
+            ipAddress,
+            userAgent,
+            latitude,
+            longitude,
+            accuracy,
+            permission,
+            country,
+            city,
+            referrer
+        );
+
         console.log(`New visit captured: ${visitId} from IP: ${ipAddress}`);
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             visitId: visitId,
-            message: 'Data captured successfully' 
+            message: 'Data captured successfully'
         });
-    });
-    
-    stmt.finalize();
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Failed to save data' });
+    }
 });
 
 // API endpoint to get all captured data (admin dashboard)
 app.get('/api/data', (req, res) => {
-    db.all(`SELECT * FROM visits ORDER BY timestamp DESC`, (err, rows) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).json({ error: 'Failed to retrieve data' });
-        }
+    try {
+        const stmt = db.prepare(`SELECT * FROM visits ORDER BY timestamp DESC`);
+        const rows = stmt.all();
         res.json(rows);
-    });
+    } catch (err) {
+        console.error('Database error:', err);
+        res.status(500).json({ error: 'Failed to retrieve data' });
+    }
 });
 
 // Admin dashboard route
@@ -149,12 +147,11 @@ app.listen(PORT, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\nShutting down server...');
-    db.close((err) => {
-        if (err) {
-            console.error('Error closing database:', err);
-        } else {
-            console.log('Database connection closed.');
-        }
-        process.exit(0);
-    });
+    try {
+        db.close();
+        console.log('Database connection closed.');
+    } catch (err) {
+        console.error('Error closing database:', err);
+    }
+    process.exit(0);
 });
