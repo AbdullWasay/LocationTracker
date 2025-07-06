@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+DEPLOYMENT.md
+.env
+.DS_Store
+*.tmp
+*.temp
+bash.exe.stackdump

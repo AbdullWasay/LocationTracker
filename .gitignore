@@ -5,3 +5,6 @@ location_data.db
 .DS_Store
 *.tmp
 *.temp
+
+# Railway
+.railway/
