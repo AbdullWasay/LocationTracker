@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Tracker - Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .controls button:hover {
+            background: #5a6fd8;
+        }
+
+        .controls input {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .data-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .location-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .location-link:hover {
+            text-decoration: underline;
+        }
+
+        .permission-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .permission-granted {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .permission-denied {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .permission-not-supported {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .controls button,
+            .controls input {
+                width: 100%;
+            }
+            
+            table {
+                font-size: 0.9rem;
+            }
+            
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📍 Location Tracker</h1>
+        <p>Admin Dashboard - Monitor visitor data and locations</p>
+    </div>
+
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <h3 id="totalVisits">-</h3>
+                <p>Total Visits</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="locationGranted">-</h3>
+                <p>Location Granted</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="locationDenied">-</h3>
+                <p>Location Denied</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="uniqueIPs">-</h3>
+                <p>Unique IPs</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="refreshData()">🔄 Refresh</button>
+            <button onclick="exportData()">📥 Export CSV</button>
+            <button onclick="clearData()" style="background: #dc3545;">🗑️ Clear All Data</button>
+            <input type="text" id="searchInput" placeholder="Search by IP, country, or city..." onkeyup="filterData()">
+        </div>
+
+        <div class="data-table">
+            <div id="loading" class="loading">
+                <div>Loading data...</div>
+            </div>
+            <div id="noData" class="no-data" style="display: none;">
+                <div>No data available. Share your tracking link to start collecting data!</div>
+                <p style="margin-top: 1rem; color: #667eea;">
+                    Tracking URL: <strong id="trackingUrl"></strong>
+                </p>
+            </div>
+            <table id="dataTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>IP Address</th>
+                        <th>Location</th>
+                        <th>Coordinates</th>
+                        <th>Permission</th>
+                        <th>Country/City</th>
+                        <th>User Agent</th>
+                    </tr>
+                </thead>
+                <tbody id="dataBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+
+        // Set tracking URL
+        document.getElementById('trackingUrl').textContent = `${window.location.origin}/track`;
+
+        // Load data when page loads
+        window.addEventListener('load', loadData);
+
+        async function loadData() {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                allData = data;
+                updateStats(data);
+                displayData(data);
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loading').innerHTML = '<div style="color: #dc3545;">Error loading data</div>';
+            }
+        }
+
+        function updateStats(data) {
+            const totalVisits = data.length;
+            const locationGranted = data.filter(item => item.location_permission === 'granted').length;
+            const locationDenied = data.filter(item => item.location_permission === 'denied').length;
+            const uniqueIPs = new Set(data.map(item => item.ip_address)).size;
+
+            document.getElementById('totalVisits').textContent = totalVisits;
+            document.getElementById('locationGranted').textContent = locationGranted;
+            document.getElementById('locationDenied').textContent = locationDenied;
+            document.getElementById('uniqueIPs').textContent = uniqueIPs;
+        }
+
+        function displayData(data) {
+            const loading = document.getElementById('loading');
+            const noData = document.getElementById('noData');
+            const table = document.getElementById('dataTable');
+            const tbody = document.getElementById('dataBody');
+
+            loading.style.display = 'none';
+
+            if (data.length === 0) {
+                noData.style.display = 'block';
+                table.style.display = 'none';
+                return;
+            }
+
+            noData.style.display = 'none';
+            table.style.display = 'table';
+
+            tbody.innerHTML = data.map(item => {
+                const timestamp = new Date(item.timestamp).toLocaleString();
+                const location = item.latitude && item.longitude 
+                    ? `<a href="https://www.google.com/maps?q=${item.latitude},${item.longitude}" target="_blank" class="location-link">View on Map</a>`
+                    : 'Not available';
+                const coordinates = item.latitude && item.longitude 
+                    ? `${item.latitude.toFixed(6)}, ${item.longitude.toFixed(6)}`
+                    : 'N/A';
+                const permissionClass = `permission-${item.location_permission.replace('_', '-')}`;
+                const userAgent = item.user_agent ? item.user_agent.substring(0, 50) + '...' : 'Unknown';
+
+                return `
+                    <tr>
+                        <td>${timestamp}</td>
+                        <td>${item.ip_address}</td>
+                        <td>${location}</td>
+                        <td>${coordinates}</td>
+                        <td><span class="permission-badge ${permissionClass}">${item.location_permission}</span></td>
+                        <td>${item.country || 'Unknown'}, ${item.city || 'Unknown'}</td>
+                        <td title="${item.user_agent}">${userAgent}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function refreshData() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('dataTable').style.display = 'none';
+            loadData();
+        }
+
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const filteredData = allData.filter(item => 
+                item.ip_address.toLowerCase().includes(searchTerm) ||
+                (item.country && item.country.toLowerCase().includes(searchTerm)) ||
+                (item.city && item.city.toLowerCase().includes(searchTerm))
+            );
+            displayData(filteredData);
+        }
+
+        function exportData() {
+            if (allData.length === 0) {
+                alert('No data to export');
+                return;
+            }
+
+            const csv = [
+                ['Timestamp', 'IP Address', 'Latitude', 'Longitude', 'Accuracy', 'Permission', 'Country', 'City', 'User Agent'],
+                ...allData.map(item => [
+                    item.timestamp,
+                    item.ip_address,
+                    item.latitude || '',
+                    item.longitude || '',
+                    item.accuracy || '',
+                    item.location_permission,
+                    item.country || '',
+                    item.city || '',
+                    item.user_agent || ''
+                ])
+            ].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `location_data_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        function clearData() {
+            if (!confirm('Are you sure you want to delete all data? This action cannot be undone.')) {
+                return;
+            }
+
+            // Note: You would need to implement a DELETE endpoint in your server for this
+            alert('Clear data functionality needs to be implemented on the server side.');
+        }
+    </script>
+</body>
+</html>
